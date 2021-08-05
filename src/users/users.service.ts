@@ -24,11 +24,10 @@ export class UsersService {
     return this.usersRepository.findOne(id);
   }
 
-  async remove(id: string): Promise<void> {
-    await this.usersRepository.delete(id);
-  }
-
   update(id: string, updateUserDto: UpdateUserDto) {
     return this.usersRepository.update({ id }, updateUserDto);
+  }
+  async remove(id: string) {
+    return this.usersRepository.update({ id }, { isActive: false });
   }
 }

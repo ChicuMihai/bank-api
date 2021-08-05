@@ -1,9 +1,12 @@
+import { Balance } from '../../balance/entities/balance.entity';
 import {
   Entity,
   Column,
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToOne,
+  JoinColumn,
 } from 'typeorm';
 
 @Entity()
@@ -26,8 +29,15 @@ export class User {
   @Column({ nullable: true })
   avatar: string;
 
+  @Column({ nullable: true, type: 'date' })
+  dateOfBirth: Date;
+
   @Column({ default: true })
   isActive: boolean;
+
+  @OneToOne(() => Balance, (balance) => balance.user)
+  @JoinColumn()
+  balance: Balance;
 
   @CreateDateColumn({
     type: 'timestamp',
