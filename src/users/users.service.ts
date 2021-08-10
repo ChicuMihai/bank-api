@@ -1,3 +1,4 @@
+import { BalanceService } from './../balance/balance.service';
 import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -10,14 +11,21 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private balanceService: BalanceService,
   ) {}
 
-  create(createUserDto: CreateUserDto) {
-    return this.usersRepository.save(createUserDto);
+  async create(createUserDto: CreateUserDto) {
+    const user = await this.usersRepository.save(createUserDto);
+    this.balanceService.initializeBalance(user);
+    return user;
   }
 
   findAll(): Promise<User[]> {
     return this.usersRepository.find();
+  }
+
+  findByEmail(userEmail: string) {
+    return this.usersRepository.findOne({ where: { email: userEmail } });
   }
 
   findOne(id: string): Promise<User> {

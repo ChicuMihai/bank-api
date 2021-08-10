@@ -23,8 +23,31 @@ export class TransactionService {
           ...transactionData,
           status: Status.CREATED,
         });
-      });
+      })
+      .catch(() => new Error('Transaction was not successful'));
   }
+
+  async checkTransactionStatus(transactionId: string) {
+    const { id, status } = await this.transactionRepository.findOne(
+      transactionId,
+    );
+    if (!id) {
+      throw new Error('Transaction not found');
+    }
+    return status;
+  }
+
+  findAllTransactions(userId: string) {
+    return this.transactionRepository.find({
+      where: { senderUserId: userId },
+      order: { created_at: 'ASC' },
+    });
+  }
+
+  getTransactionDetails(transactionId: string) {
+    return this.transactionRepository.findOne(transactionId);
+  }
+
   async cancelTransaction(transactionId: string) {
     const { status, ...rest } = await this.transactionRepository.findOne(
       transactionId,

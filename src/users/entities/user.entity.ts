@@ -35,7 +35,7 @@ export class User {
   @Column({ default: true })
   isActive: boolean;
 
-  @OneToOne(() => Balance, (balance) => balance.user)
+  @OneToOne(() => Balance, (balance) => balance.user, { cascade: true })
   @JoinColumn()
   balance: Balance;
 
