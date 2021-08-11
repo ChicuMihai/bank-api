@@ -5,6 +5,9 @@ import { Repository } from 'typeorm';
 import { Transaction } from './entities/transaction.entity';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Cron } from '@nestjs/schedule';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { TrasactionInReviewEvent } from './events/transaction-inreview.event';
 
 @Injectable()
 export class TransactionService {
@@ -12,19 +15,55 @@ export class TransactionService {
     @InjectRepository(Transaction)
     private transactionRepository: Repository<Transaction>,
     private balanceService: BalanceService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   createTransacition(transactionData: CreateTransactionDto) {
-    const { amount, senderUserId } = transactionData;
-    this.balanceService
-      .verifyBalanceForTransaction(amount, senderUserId)
-      .then(() => {
-        this.transactionRepository.save({
-          ...transactionData,
-          status: Status.CREATED,
-        });
-      })
-      .catch(() => new Error('Transaction was not successful'));
+    this.transactionRepository.save({
+      ...transactionData,
+      status: Status.CREATED,
+    });
+  }
+
+  @Cron('*/5 * * * *')
+  async verifyTransaction() {
+    const transactions = await this.transactionRepository.find({
+      where: { status: Status.CREATED },
+    });
+    for (const transaction of transactions) {
+      this.transactionRepository.update(transaction, {
+        status: Status.IN_REVIEW,
+      });
+      this.eventEmitter.emit(
+        'transaction.inreview',
+        new TrasactionInReviewEvent(
+          transaction.amount,
+          transaction.senderUserId,
+        ),
+      );
+    }
+  }
+
+  @OnEvent('transaction.inreview')
+  async onInReviewHandler(payload: TrasactionInReviewEvent) {
+    const { amount, senderUserId } = payload;
+    const isTransactionAmountValid =
+      await this.balanceService.verifyBalanceForTransaction(
+        amount,
+        senderUserId,
+      );
+
+    const newTransactionStatus = isTransactionAmountValid
+      ? Status.COMPLETE
+      : Status.DECLINED;
+
+    const transaction = await this.transactionRepository.findOne({
+      where: { senderUserId },
+    });
+
+    this.transactionRepository.update(transaction, {
+      status: newTransactionStatus,
+    });
   }
 
   async checkTransactionStatus(transactionId: string) {
