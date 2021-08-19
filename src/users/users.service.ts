@@ -1,3 +1,4 @@
+import { toBase64 } from './../utils';
 import { BalanceService } from './../balance/balance.service';
 import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -32,8 +33,15 @@ export class UsersService {
     return this.usersRepository.findOne(id);
   }
 
-  update(id: string, updateUserDto: UpdateUserDto) {
-    return this.usersRepository.update({ id }, updateUserDto);
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+    avatar: Express.Multer.File,
+  ) {
+    return this.usersRepository.update(
+      { id },
+      { ...updateUserDto, avatar: avatar.buffer.toString('base64') },
+    );
   }
   async remove(id: string) {
     return this.usersRepository.update({ id }, { isActive: false });

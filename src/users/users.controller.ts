@@ -1,3 +1,4 @@
+import { TransactionDto } from './../transactions/dto/transaction.dto';
 import { BalanceDto } from './../balance/dto/balance.dto';
 import { CreateTransactionDto } from './../transactions/dto/create-transaction.dto';
 import { User } from 'src/users/entities/user.entity';
@@ -7,21 +8,23 @@ import {
   Controller,
   Delete,
   Get,
-  NotFoundException,
+  Header,
   Param,
   Patch,
   Post,
+  StreamableFile,
+  UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { TransformInterceptor } from '../transform.interceptor';
-import { UserDto } from './dto/user.dto';
 import { AuthenticationGuard } from '../auth/auth-guard';
-import { ApiResponse } from '@nestjs/swagger';
+import { ApiConsumes, ApiResponse } from '@nestjs/swagger';
 import { UserParam } from './decorators/user';
 import { BalanceService } from 'src/balance/balance.service';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('users')
 @UseGuards(AuthenticationGuard)
@@ -32,26 +35,22 @@ export class UsersController {
     private readonly balanceService: BalanceService,
   ) {}
 
-  @Get()
-  @ApiResponse({ status: 200, type: [UserDto] })
-  @UseInterceptors(new TransformInterceptor(UserDto))
-  findAll() {
-    return this.usersService.findAll();
-  }
-
-  @UseInterceptors(new TransformInterceptor(UserDto))
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
-  }
-
-  @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    const user = await this.usersService.findOne(id);
-    if (!user) {
-      throw new NotFoundException(`User not found`);
-    }
-    return this.usersService.update(id, updateUserDto);
+  @Patch('/profile')
+  @UseInterceptors(FileInterceptor('avatar'))
+  @ApiConsumes('multipart/form-data')
+  async update(
+    @UserParam() user: User,
+    @Body() updateUserDto: UpdateUserDto,
+    @UploadedFile() avatar: Express.Multer.File,
+  ) {
+    try {
+      const result = await this.usersService.update(
+        user.id,
+        updateUserDto,
+        avatar,
+      );
+      return result;
+    } catch (e) {}
   }
 
   @Delete()
@@ -59,7 +58,9 @@ export class UsersController {
     return this.usersService.remove(user.id);
   }
 
-  @Get('transactions')
+  @Get('/transactions')
+  @ApiResponse({ status: 200, type: [TransactionDto] })
+  @UseInterceptors(new TransformInterceptor(TransactionDto))
   getAllTransactions(@UserParam() user: User) {
     return this.transactionService.findAllTransactions(user.id);
   }
@@ -89,5 +90,12 @@ export class UsersController {
   @UseInterceptors(new TransformInterceptor(BalanceDto))
   checkBalance(@UserParam() user: User) {
     return this.balanceService.getBalanceAmount(user.id);
+  }
+
+  @Get('export-transactions')
+  @Header('Content-Encoding', 'gzip')
+  async getTransactionsCsv(@UserParam() user: User) {
+    const file = await this.transactionService.exportCSV(user.id);
+    return new StreamableFile(file);
   }
 }

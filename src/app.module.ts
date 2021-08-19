@@ -4,7 +4,10 @@ import { typeOrmConfigAsync } from './config/typeorm.config';
 import { ConfigModule } from '@nestjs/config';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
-import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -12,7 +15,11 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     TypeOrmModule.forRootAsync(typeOrmConfigAsync),
     UsersModule,
     AuthModule,
-    EventEmitterModule.forRoot(),
+    ScheduleModule.forRoot(),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'public'),
+    }),
   ],
+  controllers: [AppController],
 })
 export class AppModule {}

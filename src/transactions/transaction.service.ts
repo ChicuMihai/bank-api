@@ -3,20 +3,20 @@ import { Status } from './types';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { Repository } from 'typeorm';
 import { Transaction } from './entities/transaction.entity';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Cron } from '@nestjs/schedule';
-import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
-import { TrasactionInReviewEvent } from './events/transaction-inreview.event';
-
+import { Cron, SchedulerRegistry, CronExpression } from '@nestjs/schedule';
+import * as stringify from 'csv-stringify';
+import * as zlib from 'zlib';
 @Injectable()
 export class TransactionService {
   constructor(
     @InjectRepository(Transaction)
     private transactionRepository: Repository<Transaction>,
     private balanceService: BalanceService,
-    private eventEmitter: EventEmitter2,
+    private schedulerRegistry: SchedulerRegistry,
   ) {}
+  private readonly logger = new Logger(TransactionService.name);
 
   createTransacition(transactionData: CreateTransactionDto) {
     this.transactionRepository.save({
@@ -25,45 +25,55 @@ export class TransactionService {
     });
   }
 
-  @Cron('*/5 * * * *')
+  @Cron(CronExpression.EVERY_MINUTE)
   async verifyTransaction() {
+    this.logger.log('STARTED TRANSACTION CRONJOB');
     const transactions = await this.transactionRepository.find({
       where: { status: Status.CREATED },
     });
     for (const transaction of transactions) {
-      this.transactionRepository.update(transaction, {
-        status: Status.IN_REVIEW,
-      });
-      this.eventEmitter.emit(
-        'transaction.inreview',
-        new TrasactionInReviewEvent(
-          transaction.amount,
-          transaction.senderUserId,
-        ),
+      this.transactionRepository.update(
+        { id: transaction.id },
+        {
+          status: Status.IN_REVIEW,
+        },
       );
+      const timeout = setTimeout(
+        () => this.onInReviewHandler(transaction),
+        60000,
+      );
+      this.schedulerRegistry.addTimeout('transactionInReview', timeout);
     }
   }
 
-  @OnEvent('transaction.inreview')
-  async onInReviewHandler(payload: TrasactionInReviewEvent) {
-    const { amount, senderUserId } = payload;
+  async onInReviewHandler(transaction: Transaction) {
+    const { amount, senderUserId } = transaction;
     const isTransactionAmountValid =
       await this.balanceService.verifyBalanceForTransaction(
         amount,
         senderUserId,
       );
 
+    this.logger.log(
+      `TRANSACTION WITH ID ${transaction.id} IS VALID:${isTransactionAmountValid}`,
+    );
+
     const newTransactionStatus = isTransactionAmountValid
       ? Status.COMPLETE
       : Status.DECLINED;
 
-    const transaction = await this.transactionRepository.findOne({
-      where: { senderUserId },
-    });
+    this.logger.log(
+      `UPDATED TRANSACTION ${transaction.id} WITH STATUS ${newTransactionStatus}`,
+    );
 
-    this.transactionRepository.update(transaction, {
-      status: newTransactionStatus,
-    });
+    this.transactionRepository.update(
+      { id: transaction.id },
+      {
+        status: newTransactionStatus,
+      },
+    );
+    newTransactionStatus === Status.COMPLETE &&
+      this.balanceService.transferTransactionBalance(transaction);
   }
 
   async checkTransactionStatus(transactionId: string) {
@@ -73,14 +83,28 @@ export class TransactionService {
     if (!id) {
       throw new Error('Transaction not found');
     }
-    return status;
+    return { transactionStatus: status };
   }
 
   findAllTransactions(userId: string) {
     return this.transactionRepository.find({
       where: { senderUserId: userId },
-      order: { created_at: 'ASC' },
+      order: { updated_at: 'ASC' },
     });
+  }
+
+  async exportCSV(userId: string) {
+    const transactionData = await this.findAllTransactions(userId);
+    const transactions = transactionData.map((transc, indx) => ({
+      id: indx,
+      amount: transc.amount,
+      sender: transc.senderUserId,
+      recipient: transc.recipientUserId,
+      description: transc.description,
+      status: transc.status,
+    }));
+
+    return stringify(transactions, { header: true }).pipe(zlib.createGzip());
   }
 
   getTransactionDetails(transactionId: string) {

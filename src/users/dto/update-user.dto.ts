@@ -8,4 +8,8 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsNotEmpty()
   @ApiProperty()
   dateOfBirth?: Date;
+
+  @IsOptional()
+  @ApiProperty()
+  avatar?: Express.Multer.File;
 }

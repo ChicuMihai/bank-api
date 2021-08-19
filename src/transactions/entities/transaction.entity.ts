@@ -12,7 +12,17 @@ export class Transaction {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('numeric')
+  @Column('numeric', {
+    default: 100.5,
+    transformer: {
+      to(value) {
+        return value;
+      },
+      from(value) {
+        return parseFloat(value);
+      },
+    },
+  })
   amount: number;
 
   @Column()

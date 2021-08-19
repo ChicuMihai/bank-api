@@ -14,5 +14,7 @@ export class CreateTransactionDto {
   @ApiProperty()
   amount: number;
 
+  @IsNotEmpty()
+  @ApiProperty()
   description: string;
 }

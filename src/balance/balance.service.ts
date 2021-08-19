@@ -1,6 +1,6 @@
-import { CreateTransactionDto } from './../transactions/dto/create-transaction.dto';
+import { Transaction } from './../transactions/entities/transaction.entity';
 import { Balance } from './entities/balance.entity';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
@@ -10,13 +10,13 @@ export class BalanceService {
   constructor(
     @InjectRepository(Balance) private balanceRepository: Repository<Balance>,
   ) {}
+  private readonly logger = new Logger(BalanceService.name);
 
   async verifyBalanceForTransaction(amount: number, userId: string) {
     const { amount: balanceAmount } = await this.balanceRepository.findOne({
       where: { user: userId },
     });
-    if (amount > balanceAmount) return false;
-    return true;
+    return amount > balanceAmount ? false : true;
   }
 
   async initializeBalance(user: User) {
@@ -35,18 +35,18 @@ export class BalanceService {
     });
   }
 
-  async transferTransactionBalance(transaction: CreateTransactionDto) {
+  async transferTransactionBalance(transaction: Transaction) {
     const {
       amount: transactionAmount,
       recipientUserId,
       senderUserId,
     } = transaction;
     const senderBalance = await this.balanceRepository.findOne({
-      where: senderUserId,
+      where: { user: senderUserId },
     });
 
     const reciverBalance = await this.balanceRepository.findOne({
-      where: recipientUserId,
+      where: { user: recipientUserId },
     });
     if (!senderBalance && !reciverBalance) {
       throw new Error('Balance transfer could not happen');
@@ -57,8 +57,8 @@ export class BalanceService {
     );
 
     this.updateBalanceAmount(
-      senderBalance,
-      senderBalance.amount + transactionAmount,
+      reciverBalance,
+      reciverBalance.amount + transactionAmount,
     );
   }
 }

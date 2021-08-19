@@ -29,7 +29,10 @@ export class User {
   @Column({ nullable: true })
   avatar: string;
 
-  @Column({ nullable: true, type: 'date' })
+  @Column({
+    nullable: true,
+    type: 'date',
+  })
   dateOfBirth: Date;
 
   @Column({ default: true })

@@ -12,7 +12,17 @@ export class Balance {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('numeric', { default: 100.5 })
+  @Column('numeric', {
+    default: 100.5,
+    transformer: {
+      to(value) {
+        return value;
+      },
+      from(value) {
+        return parseFloat(value);
+      },
+    },
+  })
   amount: number;
 
   @OneToOne(() => User, (user) => user.balance)
