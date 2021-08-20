@@ -4,11 +4,27 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <title>Bank HomePage</title>
+    <style>
+      .flex {
+        display: flex;
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      video {
+        max-width: 500px;
+      }
+    </style>
   </head>
   <body>
-    <video id="videoPlayer" controls>
-      <source src="http://localhost:5000/video" type="video/mp4" />
-    </video>
+    <div class="flex">
+      <h1>Welcome to Bank App Homepage!</h1>
+    </div>
+    <div class="flex">
+      <video id="videoPlayer" controls>
+        <source src="http://localhost:5000/video" type="video/mp4" />
+      </video>
+    </div>
   </body>
 </html>

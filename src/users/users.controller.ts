@@ -4,6 +4,7 @@ import { CreateTransactionDto } from './../transactions/dto/create-transaction.d
 import { User } from 'src/users/entities/user.entity';
 import { TransactionService } from './../transactions/transaction.service';
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -36,7 +37,17 @@ export class UsersController {
   ) {}
 
   @Patch('/profile')
-  @UseInterceptors(FileInterceptor('avatar'))
+  @UseInterceptors(
+    FileInterceptor('avatar', {
+      limits: { fileSize: 1000000 },
+      fileFilter(req, file, callback) {
+        if (file.originalname.match(/\.(png|jpg)$/g)) {
+          return callback(null, true);
+        }
+        callback(new Error('Wrong file type.Upload png/jpg files only'), false);
+      },
+    }),
+  )
   @ApiConsumes('multipart/form-data')
   async update(
     @UserParam() user: User,
@@ -44,13 +55,11 @@ export class UsersController {
     @UploadedFile() avatar: Express.Multer.File,
   ) {
     try {
-      const result = await this.usersService.update(
-        user.id,
-        updateUserDto,
-        avatar,
-      );
-      return result;
-    } catch (e) {}
+      this.usersService.update(user.id, updateUserDto, avatar);
+      return 'User Profile Updates SuccessFully';
+    } catch (e) {
+      throw new BadRequestException('Something went wrong');
+    }
   }
 
   @Delete()

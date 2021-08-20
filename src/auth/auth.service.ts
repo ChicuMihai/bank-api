@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -23,6 +27,10 @@ export class AuthService {
   }
 
   async register(body: CreateUserDto) {
+    const user = await this.usersService.findByEmail(body.email);
+    if (user) {
+      throw new BadRequestException('Email is already in use');
+    }
     const { password, ...rest } = body;
     const hashedPassword = await bcrypt.hash(password, 10);
     return this.usersService.create({ password: hashedPassword, ...rest });

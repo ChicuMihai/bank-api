@@ -1,4 +1,3 @@
-import { toBase64 } from './../utils';
 import { BalanceService } from './../balance/balance.service';
 import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';

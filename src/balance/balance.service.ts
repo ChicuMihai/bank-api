@@ -20,6 +20,7 @@ export class BalanceService {
   }
 
   async initializeBalance(user: User) {
+    this.logger.log(`INIT BALANCE FOR USER ${user.id}`);
     return this.balanceRepository.save({ amount: 100.5, user: user });
   }
 
@@ -51,6 +52,9 @@ export class BalanceService {
     if (!senderBalance && !reciverBalance) {
       throw new Error('Balance transfer could not happen');
     }
+    this.logger.log(
+      `TRANSFER BALANCE ${transactionAmount} FROM ${senderBalance.user.id} TO ${reciverBalance.user.id}`,
+    );
     this.updateBalanceAmount(
       senderBalance,
       senderBalance.amount - transactionAmount,
