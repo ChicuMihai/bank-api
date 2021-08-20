@@ -27,7 +27,7 @@ import { UserParam } from './decorators/user';
 import { BalanceService } from 'src/balance/balance.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 
-@Controller('users')
+@Controller('user')
 @UseGuards(AuthenticationGuard)
 export class UsersController {
   constructor(
